@@ -1,0 +1,10 @@
+node_modules
+dist
+data
+legacy
+claude-code-team
+.claude
+.impeccable
+tests
+*.md
+docker-compose*.yml

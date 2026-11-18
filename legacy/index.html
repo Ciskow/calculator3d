@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <link rel="icon" type="image/x-icon" href="/images/calculator3d.svg">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora de Custo 3D</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#181b22; --panel2:#1f232c; --border:#2a2f3a;
+    --text:#e8eaf0; --muted:#8b93a5; --accent:#4f8cff; --green:#3ddc84;
+    --red:#ff6b6b; --amber:#ffb347;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh;}
+  .wrap{max-width:1200px; margin:0 auto; padding:24px 16px 60px;}
+  header{display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; flex-wrap:wrap; gap:12px;}
+  h1{font-size:1.4rem; font-weight:600;}
+  h1 span{color:var(--accent);}
+  h2{font-size:.95rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:12px;}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:20px;}
+  button{cursor:pointer; border:none; border-radius:8px; font-size:.9rem; font-family:inherit;}
+  .btn{background:var(--accent); color:#fff; padding:8px 16px; font-weight:600;}
+  .btn:hover{filter:brightness(1.15);}
+  .btn-ghost{background:var(--panel2); color:var(--text); border:1px solid var(--border); padding:8px 14px;}
+  .btn-ghost:hover{border-color:var(--accent);}
+  .btn-del{background:transparent; color:var(--red); font-size:1.1rem; padding:4px 8px;}
+  table{width:100%; border-collapse:collapse; font-size:.9rem;}
+  th{color:var(--muted); font-weight:600; text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em;}
+  td{padding:6px 10px; border-bottom:1px solid var(--border);}
+  tr:last-child td{border-bottom:none;}
+  tr.sel{background:rgba(79,140,255,.08);}
+  tbody tr{cursor:pointer;}
+  input,select{background:var(--panel2); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:7px 9px; font-size:.9rem; width:100%; font-family:inherit;}
+  input:focus{outline:none; border-color:var(--accent);}
+  input.num{text-align:right;}
+  /* custom number steppers */
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none; margin:0;}
+  input[type=number]{-moz-appearance:textfield; appearance:textfield;}
+  .stepper{display:flex; align-items:stretch; background:var(--panel2); border:1px solid var(--border); border-radius:6px; overflow:hidden; width:100%;}
+  .stepper:focus-within{border-color:var(--accent);}
+  .stepper input{border:none; border-radius:0; background:transparent; flex:1 1 auto; min-width:34px; width:auto; padding:7px 2px; text-align:center;}
+  .stepper input:focus{border:none;}
+  .stepper button{background:transparent; color:var(--muted); width:24px; flex:0 0 24px; font-size:1rem; line-height:1; user-select:none; transition:background .1s,color .1s;}
+  .stepper button:hover{background:rgba(79,140,255,.15); color:var(--accent);}
+  .stepper button:active{background:rgba(79,140,255,.3);}
+  #tblAcc td,#tblAcc th{padding:6px 5px;}
+  #tblAcc .stepper button{width:20px; flex:0 0 20px;}
+  .money{font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap;}
+  .grid{display:grid; gap:16px;}
+  .g2{grid-template-columns:1fr 1fr;}
+  @media(max-width:800px){.g2{grid-template-columns:1fr;}}
+  .cfg-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;}
+  .field label{display:block; font-size:.75rem; color:var(--muted); margin-bottom:4px;}
+  .markup-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px;}
+  .mk{background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:14px;}
+  .mk .mkhead{display:flex; align-items:center; gap:8px; margin-bottom:10px;}
+  .mk .mkhead .stepper{width:96px; flex:0 0 96px;}
+  .mk .mkhead input{text-align:center; font-weight:700; font-size:1rem;}
+  .mk .mkhead .x{color:var(--muted); font-weight:700;}
+  .mk .row{display:flex; justify-content:space-between; padding:4px 0; font-size:.85rem;}
+  .mk .row .lbl{color:var(--muted);}
+  .mk .big{font-size:1.15rem; font-weight:700; color:var(--green);}
+  .mk hr{border:none; border-top:1px solid var(--border); margin:8px 0;}
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:20px;}
+  .kpi{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px;}
+  .kpi .v{font-size:1.3rem; font-weight:700; margin-top:2px;}
+  .kpi .l{font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em;}
+  .breakdown .row{display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px dashed var(--border); font-size:.87rem;}
+  .breakdown .row:last-child{border-bottom:none; font-weight:700;}
+  .breakdown .lbl{color:var(--muted);}
+  dialog{background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:14px; padding:24px; max-width:680px; width:92%;}
+  dialog::backdrop{background:rgba(0,0,0,.6);}
+  .dlg-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;}
+  .hint{font-size:.75rem; color:var(--muted); margin-top:10px;}
+  .tag{font-size:.7rem; background:var(--panel2); border:1px solid var(--border); border-radius:20px; padding:2px 10px; color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🖨️ Calculadora de Custo <span>3D</span></h1>
+    <div style="display:flex; gap:8px;">
+      <button class="btn-ghost" onclick="dlgCfg.showModal()">⚙️ Configurações</button>
+    </div>
+  </header>
+
+  <!-- PEÇAS -->
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h2 style="margin:0;">Peças</h2>
+      <button class="btn" onclick="addPart()">+ Adicionar peça</button>
+    </div>
+    <div style="overflow-x:auto;">
+    <table id="tblParts">
+      <thead><tr>
+        <th style="min-width:140px;">Modelo</th><th style="width:130px; min-width:120px;">Tempo (h)</th>
+        <th style="width:130px; min-width:120px;">Peso (g)</th><th style="width:115px; min-width:105px;">Unid.</th>
+        <th class="money">Custo total</th><th class="money">Custo/un</th><th style="width:40px;"></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- TOTAIS -->
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid g2">
+    <!-- BREAKDOWN peça selecionada -->
+    <div class="card breakdown">
+      <h2 id="bdTitle">Detalhe de custo</h2>
+      <div id="bdBody"></div>
+      <!-- ACESSÓRIOS -->
+      <div style="margin-top:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <h2 style="margin:0;">Acessórios / Embalagens</h2>
+          <button class="btn-ghost" onclick="addAcc()">+ item</button>
+        </div>
+        <div style="overflow-x:auto;">
+        <table id="tblAcc">
+          <thead><tr><th style="min-width:110px;">Item</th><th style="width:88px;">Qtd</th><th style="width:104px;">Custo un.</th><th class="money" style="width:90px;">Total</th><th style="width:34px;"></th></tr></thead>
+          <tbody></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRECIFICAÇÃO -->
+    <div class="card">
+      <h2 id="mkTitle">Precificação</h2>
+      <div class="markup-grid" id="mkGrid"></div>
+      <p class="hint">Preço lojista = preço consumidor ÷ 2. Lucro líquido desconta imposto, taxa de cartão e anúncio (consumidor) ou só imposto (lojista).</p>
+    </div>
+  </div>
+
+  <!-- CONFIG DIALOG -->
+  <dialog id="dlgCfg">
+    <div class="dlg-head">
+      <h2 style="margin:0;">⚙️ Configurações</h2>
+      <button class="btn-ghost" onclick="dlgCfg.close()">Fechar</button>
+    </div>
+    <div class="cfg-grid" id="cfgGrid"></div>
+    <p class="hint">Valores salvos automaticamente no navegador. Fórmula de energia: Potência × Tempo × 0,5 (fator de uso médio). Falhas: % × (filamento + energia + amortização) × 0,7.</p>
+    <div style="margin-top:14px; text-align:right;">
+      <button class="btn-ghost" onclick="resetCfg()">Restaurar padrões</button>
+    </div>
+  </dialog>
+</div>
+
+<script>
+const fmt = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const num = v => { const n = parseFloat(String(v).replace(',','.')); return isFinite(n)?n:0; };
+
+const CFG_DEF = {
+  filamentKg:{l:'Filamento (R$/kg)',v:120},
+  power:{l:'Potência impressora (W)',v:360},
+  duty:{l:'Fator de uso (0–1)',v:0.5},
+  kwh:{l:'Custo kWh (R$)',v:0.90},
+  machineVal:{l:'Valor da máquina (R$)',v:5000},
+  machineLife:{l:'Vida útil (horas)',v:20000},
+  fixedMonth:{l:'Custo fixo mensal (R$)',v:0},
+  unitsMonth:{l:'Unidades / mês',v:1},
+  failPct:{l:'% de falhas',v:15},
+  taxPct:{l:'Imposto (%)',v:8},
+  cardPct:{l:'Taxa cartão (%)',v:5},
+  adPct:{l:'Custo de anúncio (%)',v:20},
+};
+
+let state = load() || {
+  cfg: Object.fromEntries(Object.entries(CFG_DEF).map(([k,d])=>[k,d.v])),
+  markups: [2, 2.5, 3, 4],
+  parts: [{name:'Quarteto Bob', hours:5, weight:120, units:1,
+           acc:[{name:'Embalagem',qty:0,cost:0.25},{name:'Ímã',qty:0,cost:0.56}]}],
+  sel: 0,
+};
+// merge new cfg keys after updates
+for(const k in CFG_DEF) if(!(k in state.cfg)) state.cfg[k]=CFG_DEF[k].v;
+
+function load(){ try{return JSON.parse(localStorage.getItem('calc3d'))}catch(e){return null} }
+function save(){ localStorage.setItem('calc3d', JSON.stringify(state)); }
+
+// ---- CÁLCULO (fiel à planilha) ----
+function calc(p){
+  const c = state.cfg;
+  const mat    = p.weight/1000 * c.filamentKg;                       // D11
+  const energy = (c.power * p.hours * c.duty) * c.kwh / 1000;        // D17
+  const accTot = p.acc.reduce((s,a)=>s + a.qty*a.cost, 0);           // E20..E26
+  const fixed  = c.unitsMonth>0 ? c.fixedMonth/c.unitsMonth : 0;     // D30
+  const amort  = c.machineLife>0 ? c.machineVal/c.machineLife*p.hours : 0; // D33
+  const fail   = (c.failPct/100) * (mat+energy+amort) * 0.7;         // B37*(...)*0.7
+  const total  = mat+energy+accTot+fixed+amort+fail;                 // H5
+  const unit   = p.units>0 ? total/p.units : total;                  // H7
+  return {mat,energy,accTot,fixed,amort,fail,total,unit};
+}
+function pricing(unit, mk){
+  const c = state.cfg;
+  const consumer = unit*mk, lojista = consumer/2;
+  const gbC = consumer-unit, gbL = lojista-unit;
+  const netC = gbC - gbC*(c.taxPct/100) - gbC*(c.cardPct/100) - gbC*(c.adPct/100);
+  const netL = gbL - gbL*(c.taxPct/100);
+  return {consumer,lojista,gbC,gbL,netC,netL};
+}
+
+// ---- RENDER ----
+function render(){
+  save();
+  if(state.sel >= state.parts.length) state.sel = state.parts.length-1;
+  const tb = document.querySelector('#tblParts tbody');
+  tb.innerHTML='';
+  let sumTotal=0, sumUnits=0, sumH=0, sumG=0;
+  state.parts.forEach((p,i)=>{
+    const r = calc(p);
+    sumTotal+=r.total; sumUnits+=p.units; sumH+=p.hours; sumG+=p.weight;
+    const tr=document.createElement('tr');
+    if(i===state.sel) tr.className='sel';
+    tr.innerHTML = `
+      <td><input value="${esc(p.name)}" data-i="${i}" data-f="name"></td>
+      <td><input class="num" type="number" step="0.1" min="0" value="${p.hours}" data-i="${i}" data-f="hours"></td>
+      <td><input class="num" type="number" step="1" min="0" value="${p.weight}" data-i="${i}" data-f="weight"></td>
+      <td><input class="num" type="number" step="1" min="1" value="${p.units}" data-i="${i}" data-f="units"></td>
+      <td class="money">${fmt(r.total)}</td>
+      <td class="money" style="color:var(--amber); font-weight:600;">${fmt(r.unit)}</td>
+      <td><button class="btn-del" data-del="${i}" title="Remover">✕</button></td>`;
+    tr.addEventListener('click', e=>{ if(e.target.tagName!=='BUTTON'){ if(state.sel!==i){state.sel=i; render();} } });
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      const p = state.parts[+inp.dataset.i];
+      p[inp.dataset.f] = inp.dataset.f==='name' ? inp.value : num(inp.value);
+      renderSoft();
+    });
+    inp.addEventListener('click', e=>e.stopPropagation());
+  });
+  tb.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{
+    state.parts.splice(+b.dataset.del,1);
+    if(!state.parts.length) addPart(); else render();
+  }));
+
+  // KPIs
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><div class="l">Peças</div><div class="v">${state.parts.length}</div></div>
+    <div class="kpi"><div class="l">Tempo total</div><div class="v">${sumH.toLocaleString('pt-BR')} h</div></div>
+    <div class="kpi"><div class="l">Filamento total</div><div class="v">${sumG.toLocaleString('pt-BR')} g</div></div>
+    <div class="kpi"><div class="l">Unidades</div><div class="v">${sumUnits}</div></div>
+    <div class="kpi"><div class="l">Custo total (lote)</div><div class="v" style="color:var(--amber);">${fmt(sumTotal)}</div></div>`;
+
+  renderDetail();
+}
+
+// re-render only computed cells while typing (keeps focus)
+function renderSoft(){
+  save();
+  const rows = document.querySelectorAll('#tblParts tbody tr');
+  let sumTotal=0,sumUnits=0,sumH=0,sumG=0;
+  state.parts.forEach((p,i)=>{
+    const r=calc(p);
+    sumTotal+=r.total; sumUnits+=p.units; sumH+=p.hours; sumG+=p.weight;
+    const tds = rows[i].querySelectorAll('td.money');
+    tds[0].textContent = fmt(r.total);
+    tds[1].textContent = fmt(r.unit);
+  });
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><div class="l">Peças</div><div class="v">${state.parts.length}</div></div>
+    <div class="kpi"><div class="l">Tempo total</div><div class="v">${sumH.toLocaleString('pt-BR')} h</div></div>
+    <div class="kpi"><div class="l">Filamento total</div><div class="v">${sumG.toLocaleString('pt-BR')} g</div></div>
+    <div class="kpi"><div class="l">Unidades</div><div class="v">${sumUnits}</div></div>
+    <div class="kpi"><div class="l">Custo total (lote)</div><div class="v" style="color:var(--amber);">${fmt(sumTotal)}</div></div>`;
+  updateDetailValues();
+}
+
+function renderDetail(){
+  const p = state.parts[state.sel];
+  if(!p) return;
+
+  // acessórios (estrutura)
+  const ta = document.querySelector('#tblAcc tbody');
+  ta.innerHTML='';
+  p.acc.forEach((a,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><input value="${esc(a.name)}" data-i="${i}" data-f="name"></td>
+      <td><input class="num" type="number" step="1" min="0" value="${a.qty}" data-i="${i}" data-f="qty"></td>
+      <td><input class="num" type="number" step="0.01" min="0" value="${a.cost}" data-i="${i}" data-f="cost"></td>
+      <td class="money">${fmt(a.qty*a.cost)}</td>
+      <td><button class="btn-del" data-del="${i}">✕</button></td>`;
+    ta.appendChild(tr);
+  });
+  ta.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',()=>{
+    const a=p.acc[+inp.dataset.i];
+    a[inp.dataset.f]=inp.dataset.f==='name'?inp.value:num(inp.value);
+    renderSoft();
+  }));
+  ta.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{p.acc.splice(+b.dataset.del,1); render();}));
+
+  // markups (estrutura)
+  const mg=document.getElementById('mkGrid');
+  mg.innerHTML='';
+  state.markups.forEach((mk,i)=>{
+    const d=document.createElement('div');
+    d.className='mk';
+    d.innerHTML=`
+      <div class="mkhead"><span class="tag">MARKUP</span><input type="number" step="0.1" min="0" value="${mk}" data-mk="${i}"><span class="x">×</span></div>
+      <div class="row"><span class="lbl">Preço consumidor</span><span class="big v-cons"></span></div>
+      <div class="row"><span class="lbl">Lucro bruto</span><span class="money v-gbc"></span></div>
+      <div class="row"><span class="lbl">Lucro líquido</span><span class="money v-netc"></span></div>
+      <hr>
+      <div class="row"><span class="lbl">Preço lojista</span><span class="money v-loj" style="font-weight:700;"></span></div>
+      <div class="row"><span class="lbl">Lucro bruto</span><span class="money v-gbl"></span></div>
+      <div class="row"><span class="lbl">Lucro líquido</span><span class="money v-netl"></span></div>`;
+    mg.appendChild(d);
+  });
+  mg.querySelectorAll('[data-mk]').forEach(inp=>inp.addEventListener('input',()=>{
+    state.markups[+inp.dataset.mk]=num(inp.value);
+    renderSoft();
+  }));
+
+  updateDetailValues();
+  attachSteppers(document.body);
+}
+
+// atualiza só os valores calculados (não reconstrói inputs — preserva o foco ao digitar)
+function updateDetailValues(){
+  const p = state.parts[state.sel];
+  if(!p) return;
+  const r = calc(p);
+  document.getElementById('bdTitle').textContent = `Detalhe de custo — ${p.name||'(sem nome)'}`;
+  document.getElementById('bdBody').innerHTML = `
+    <div class="row"><span class="lbl">Matéria-prima (${p.weight} g)</span><span class="money">${fmt(r.mat)}</span></div>
+    <div class="row"><span class="lbl">Energia (${state.cfg.power} W × ${p.hours} h × ${state.cfg.duty})</span><span class="money">${fmt(r.energy)}</span></div>
+    <div class="row"><span class="lbl">Acessórios / embalagens</span><span class="money">${fmt(r.accTot)}</span></div>
+    <div class="row"><span class="lbl">Custo fixo rateado</span><span class="money">${fmt(r.fixed)}</span></div>
+    <div class="row"><span class="lbl">Amortização da máquina</span><span class="money">${fmt(r.amort)}</span></div>
+    <div class="row"><span class="lbl">Provisão de falhas (${state.cfg.failPct}%)</span><span class="money">${fmt(r.fail)}</span></div>
+    <div class="row"><span>CUSTO TOTAL ${p.units>1?`(${p.units} un → ${fmt(r.unit)}/un)`:''}</span><span class="money">${fmt(r.total)}</span></div>`;
+
+  document.querySelectorAll('#tblAcc tbody tr').forEach((tr,i)=>{
+    const a=p.acc[i];
+    if(a) tr.querySelector('td.money').textContent = fmt(a.qty*a.cost);
+  });
+
+  document.getElementById('mkTitle').textContent = `Precificação — ${p.name||'(sem nome)'}`;
+  document.querySelectorAll('#mkGrid .mk').forEach((d,i)=>{
+    const pr = pricing(r.unit, state.markups[i]);
+    d.querySelector('.v-cons').textContent = fmt(pr.consumer);
+    d.querySelector('.v-gbc').textContent  = fmt(pr.gbC);
+    d.querySelector('.v-loj').textContent  = fmt(pr.lojista);
+    d.querySelector('.v-gbl').textContent  = fmt(pr.gbL);
+    const nc=d.querySelector('.v-netc'), nl=d.querySelector('.v-netl');
+    nc.textContent = fmt(pr.netC); nc.style.color = pr.netC>=0?'var(--green)':'var(--red)';
+    nl.textContent = fmt(pr.netL); nl.style.color = pr.netL>=0?'var(--green)':'var(--red)';
+  });
+}
+
+// envolve inputs numéricos com botões − / + customizados
+function attachSteppers(scope){
+  scope.querySelectorAll('input[type=number]').forEach(inp=>{
+    if(inp.closest('.stepper')) return;
+    const wrap=document.createElement('div');
+    wrap.className='stepper';
+    inp.parentNode.insertBefore(wrap, inp);
+    const mk=(txt)=>{const b=document.createElement('button'); b.type='button'; b.tabIndex=-1; b.textContent=txt; return b;};
+    const minus=mk('−'), plus=mk('+');
+    wrap.append(minus, inp, plus);
+    const step=dir=>{
+      try{ dir>0 ? inp.stepUp() : inp.stepDown(); }catch(e){}
+      inp.dispatchEvent(new Event('input',{bubbles:false}));
+    };
+    minus.addEventListener('click',e=>{e.stopPropagation(); step(-1);});
+    plus.addEventListener('click',e=>{e.stopPropagation(); step(1);});
+  });
+}
+
+// ---- CONFIG ----
+function renderCfg(){
+  const g=document.getElementById('cfgGrid');
+  g.innerHTML='';
+  for(const [k,d] of Object.entries(CFG_DEF)){
+    const div=document.createElement('div');
+    div.className='field';
+    div.innerHTML=`<label>${d.l}</label><input class="num" type="number" step="any" value="${state.cfg[k]}" data-k="${k}">`;
+    g.appendChild(div);
+  }
+  g.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',()=>{
+    state.cfg[inp.dataset.k]=num(inp.value);
+    renderSoft();
+  }));
+  attachSteppers(g);
+}
+function resetCfg(){
+  state.cfg = Object.fromEntries(Object.entries(CFG_DEF).map(([k,d])=>[k,d.v]));
+  renderCfg(); renderSoft();
+}
+
+function addPart(){
+  state.parts.push({name:'Nova peça', hours:1, weight:50, units:1, acc:[]});
+  state.sel = state.parts.length-1;
+  render();
+}
+function addAcc(){
+  state.parts[state.sel].acc.push({name:'Item', qty:1, cost:0});
+  render();
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+
+renderCfg();
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- printer top frame -->
+  <path d="M10 6h44a4 4 0 0 1 4 4v6H6v-6a4 4 0 0 1 4-4Z" fill="#4f8cff"/>
+  <rect x="6" y="16" width="6" height="40" rx="2" fill="#4f8cff"/>
+  <rect x="52" y="16" width="6" height="40" rx="2" fill="#4f8cff"/>
+  <!-- nozzle -->
+  <rect x="25" y="16" width="14" height="8" rx="2" fill="#9aa3b5"/>
+  <path d="M28 24h8l-4 7z" fill="#9aa3b5"/>
+  <!-- printed part (layers) -->
+  <rect x="23" y="38" width="18" height="4.5" rx="1.5" fill="#ffb347"/>
+  <rect x="21" y="44" width="22" height="4.5" rx="1.5" fill="#ffb347"/>
+  <rect x="19" y="50" width="26" height="4.5" rx="1.5" fill="#ffb347"/>
+  <!-- bed -->
+  <rect x="12" y="57" width="40" height="4" rx="2" fill="#4f8cff"/>
+  <!-- cost badge -->
+  <circle cx="51" cy="49" r="11.5" fill="#3ddc84"/>
+  <circle cx="51" cy="49" r="11.5" fill="none" stroke="#0f1115" stroke-opacity=".25" stroke-width="1.5"/>
+  <text x="51" y="54" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="bold" text-anchor="middle" fill="#0f1115">$</text>
+</svg>
