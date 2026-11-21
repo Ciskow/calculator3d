@@ -4,7 +4,7 @@ import { Printer, X } from 'lucide-react';
 import { calcPricing, partCost } from '../../shared/calc.ts';
 import type { AppState, Project } from '../../shared/types.ts';
 import { fmtBRL, fmtNum } from '../format.ts';
-import { patchProject } from '../store.ts';
+import { patchProject, priceIdx, setPriceIdx } from '../store.ts';
 import { Button, IconButton, Labeled } from './ui.tsx';
 import { useDialog } from './SettingsPanel.tsx';
 
@@ -19,10 +19,10 @@ const cents = (v: number) => Math.round(v * 100) / 100;
 
 export function QuoteDialog({ state, project, open, onClose }: Props) {
   const ref = useDialog(open);
-  const [markupIdx, setMarkupIdx] = useState(0);
   const [kind, setKind] = useState<'consumer' | 'lojista'>('consumer');
 
-  const idx = Math.min(markupIdx, project.markups.length - 1);
+  // O markup do orçamento é o preço principal do projeto (o mesmo destacado na tabela).
+  const idx = priceIdx(project);
   const markup = project.markups[idx] ?? 1;
 
   const items = project.parts.map((part) => {
@@ -61,7 +61,7 @@ export function QuoteDialog({ state, project, open, onClose }: Props) {
           />
         </Labeled>
         <Labeled label="Markup" htmlFor="q-markup">
-          <select id="q-markup" className="field" value={idx} onChange={(e) => setMarkupIdx(Number(e.target.value))}>
+          <select id="q-markup" className="field" value={idx} onChange={(e) => setPriceIdx(Number(e.target.value))}>
             {project.markups.map((m, i) => (
               <option key={i} value={i}>{fmtNum(m)}×</option>
             ))}

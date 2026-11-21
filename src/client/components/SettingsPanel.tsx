@@ -10,12 +10,16 @@ import {
   patchRates,
   removeMaterial,
   removePrinter,
+  resetRates,
 } from '../store.ts';
 import { Button, IconButton, Labeled, NumberField } from './ui.tsx';
+import { UndoToast } from './UndoToast.tsx';
 
 interface Props {
   state: AppState;
   open: boolean;
+  /** id do campo que recebe o foco ao abrir (ex.: "rate-fixedMonth") */
+  focusId?: string | null;
   onClose: () => void;
 }
 
@@ -31,9 +35,16 @@ export function useDialog(open: boolean) {
   return ref;
 }
 
-export function SettingsPanel({ state, open, onClose }: Props) {
+export function SettingsPanel({ state, open, focusId, onClose }: Props) {
   const ref = useDialog(open);
   const r = state.rates;
+
+  useEffect(() => {
+    if (!open || !focusId) return;
+    const el = document.getElementById(focusId);
+    el?.scrollIntoView({ block: 'center' });
+    el?.focus();
+  }, [open, focusId]);
 
   const rate = (key: keyof Rates, label: string, opts: { suffix?: string; prefix?: string; step?: number; max?: number; hint?: string } = {}) => (
     <Labeled label={label} htmlFor={`rate-${key}`} hint={opts.hint}>
@@ -129,7 +140,7 @@ export function SettingsPanel({ state, open, onClose }: Props) {
                       <NumberField label={`Potência de ${p.name}`} suffix="W" step={10} value={p.power} onChange={(power) => patchPrinter(p.id, { power })} />
                     </Labeled>
                     <Labeled label="Valor">
-                      <NumberField label={`Valor de ${p.name}`} prefix="R$" step={100} value={p.value} onChange={(value) => patchPrinter(p.id, { value })} />
+                      <NumberField id={`printer-${p.id}`} label={`Valor de ${p.name}`} prefix="R$" step={100} value={p.value} onChange={(value) => patchPrinter(p.id, { value })} />
                     </Labeled>
                     <Labeled label="Vida útil">
                       <NumberField label={`Vida útil de ${p.name}`} suffix="h" step={1000} value={p.lifeHours} onChange={(lifeHours) => patchPrinter(p.id, { lifeHours })} />
@@ -166,17 +177,15 @@ export function SettingsPanel({ state, open, onClose }: Props) {
           <div className="mt-8 border-t border-line pt-4">
             <Button
               icon={<RotateCcw className="size-3.5" />}
-              onClick={() => {
-                if (confirm('Restaurar energia, custos fixos, falhas e taxas para os valores padrão? Materiais e impressoras não mudam.')) {
-                  patchRates({ ...DEFAULT_RATES });
-                }
-              }}
+              onClick={() => resetRates(DEFAULT_RATES)}
             >
               Restaurar taxas padrão
             </Button>
+            <p className="mt-1.5 text-[12px] text-faint">Energia, custos fixos, falhas e taxas. Materiais e impressoras não mudam.</p>
           </div>
         </div>
       </div>
+      {open && <UndoToast className="left-auto! w-[min(460px,100vw)]" />}
     </dialog>
   );
 }

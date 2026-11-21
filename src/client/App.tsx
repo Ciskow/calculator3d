@@ -1,5 +1,10 @@
 import { useState } from 'react';
-import { activeProject, useStore } from './store.ts';
+import { ChevronRight } from 'lucide-react';
+import { calcPricing, partCost } from '../shared/calc.ts';
+import type { AppState, Part, Project } from '../shared/types.ts';
+import { activeProject, priceIdx, useStore } from './store.ts';
+import { fmtBRL, fmtNum } from './format.ts';
+import { UndoToast } from './components/UndoToast.tsx';
 import { TopBar } from './components/TopBar.tsx';
 import { PartsPane } from './components/PartsPane.tsx';
 import { EditorPane } from './components/EditorPane.tsx';
@@ -19,7 +24,8 @@ export function App() {
   const data = useStore((s) => s.data);
   const selPartId = useStore((s) => s.selPartId);
   const [tab, setTab] = useState<Tab>('parts');
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  /** null = fechado; focus = campo a destacar ao abrir */
+  const [settings, setSettings] = useState<{ focus: string | null } | null>(null);
   const [quoteOpen, setQuoteOpen] = useState(false);
 
   if (!data) return <LoadingShell />;
@@ -32,7 +38,7 @@ export function App() {
       <TopBar
         state={data}
         project={project}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={() => setSettings({ focus: null })}
         onOpenQuote={() => setQuoteOpen(true)}
       />
 
@@ -75,6 +81,7 @@ export function App() {
           <EditorPane
             state={data}
             part={part}
+            onOpenSettings={(focus) => setSettings({ focus })}
             className={cx('xl:overflow-y-auto', tab !== 'part' && 'max-md:hidden')}
           />
           <PricingPane
@@ -86,9 +93,56 @@ export function App() {
         </div>
       </main>
 
-      <SettingsPanel state={data} open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      {tab === 'part' && part && (
+        <PriceSummaryBar state={data} project={project} part={part} onShowPricing={() => setTab('pricing')} />
+      )}
+
+      <SettingsPanel
+        state={data}
+        open={settings !== null}
+        focusId={settings?.focus}
+        onClose={() => setSettings(null)}
+      />
       <QuoteDialog state={data} project={project} open={quoteOpen} onClose={() => setQuoteOpen(false)} />
+      {/* Dentro de um <dialog> modal o resto da página fica inerte; o painel de configurações tem o seu. */}
+      {!settings && !quoteOpen && (
+        <UndoToast className={cx(tab === 'part' && part && 'max-md:bottom-16')} />
+      )}
     </div>
+  );
+}
+
+/** Abaixo de 768px custo e preço ficam em abas: esta barra mostra o preço sem trocar de aba. */
+function PriceSummaryBar({
+  state,
+  project,
+  part,
+  onShowPricing,
+}: {
+  state: AppState;
+  project: Project;
+  part: Part;
+  onShowPricing: () => void;
+}) {
+  const cost = partCost(state, part);
+  const i = priceIdx(project);
+  const mk = project.markups[i];
+  if (mk === undefined) return null;
+  const price = calcPricing(cost.unit, mk, state.rates).consumer;
+  return (
+    <button
+      type="button"
+      onClick={onShowPricing}
+      aria-label={`Custo ${fmtBRL(cost.unit)}, preço ${fmtBRL(price)} com markup ${fmtNum(mk)}×. Ver preços`}
+      className="flex h-12 shrink-0 items-center gap-3 border-t border-line bg-panel px-4 text-left md:hidden"
+    >
+      <span className="num text-[12px] text-muted">
+        Custo <span className="text-cost">{fmtBRL(cost.unit)}</span>
+      </span>
+      <span className="num ml-auto text-[12px] text-muted">{fmtNum(mk)}×</span>
+      <span className="num text-[15px] font-semibold">{fmtBRL(price)}</span>
+      <ChevronRight className="size-4 text-faint" aria-hidden />
+    </button>
   );
 }
 

@@ -16,10 +16,22 @@ import { Button, IconButton, Labeled, NumberField, cx } from './ui.tsx';
 interface Props {
   state: AppState;
   part: Part | null;
+  /** abre as configurações com o foco num campo (ex.: "rate-fixedMonth") */
+  onOpenSettings: (focusId: string) => void;
   className?: string;
 }
 
-export function EditorPane({ state, part, className }: Props) {
+interface Line {
+  key: string;
+  label: string;
+  detail: string;
+  value: number;
+  color: string;
+  /** campo das configurações que falta preencher para esta linha */
+  setup?: string;
+}
+
+export function EditorPane({ state, part, onOpenSettings, className }: Props) {
   if (!part) {
     return (
       <section className={cx('flex min-w-0 items-center justify-center p-8', className)}>
@@ -42,7 +54,7 @@ export function EditorPane({ state, part, className }: Props) {
   const material = materialFor(state, part);
   const printer = printerFor(state, part);
 
-  const lines = [
+  const lines: Line[] = [
     {
       key: 'mat',
       label: 'Matéria-prima',
@@ -61,11 +73,12 @@ export function EditorPane({ state, part, className }: Props) {
       key: 'amort',
       label: 'Amortização da máquina',
       detail:
-        inputs.machineLife > 0
+        inputs.machineLife > 0 && inputs.machineVal > 0
           ? `${fmtBRL(inputs.machineVal)} ÷ ${fmtNum(inputs.machineLife)} h × ${fmtNum(part.hours)} h`
-          : 'vida útil não informada',
+          : 'valor ou vida útil da impressora não informados',
       value: cost.amort,
       color: 'bg-c-amort',
+      setup: inputs.machineLife > 0 && inputs.machineVal > 0 ? undefined : `printer-${printer.id}`,
     },
     {
       key: 'fail',
@@ -85,11 +98,12 @@ export function EditorPane({ state, part, className }: Props) {
       key: 'fixed',
       label: 'Custo fixo rateado',
       detail:
-        inputs.unitsMonth > 0
+        inputs.fixedMonth > 0 && inputs.unitsMonth > 0
           ? `${fmtBRL(inputs.fixedMonth)} ÷ ${fmtNum(inputs.unitsMonth)} un/mês`
-          : 'unidades por mês não informadas',
+          : 'custo fixo mensal não configurado',
       value: cost.fixed,
       color: 'bg-c-fixed',
+      setup: inputs.fixedMonth > 0 && inputs.unitsMonth > 0 ? undefined : 'rate-fixedMonth',
     },
   ];
   const share = (v: number) => (cost.total > 0 ? v / cost.total : 0);
@@ -175,80 +189,8 @@ export function EditorPane({ state, part, className }: Props) {
           </Labeled>
         </div>
 
-        {/* Composição do custo */}
-        <div className="mt-8 flex items-end justify-between gap-4">
-          <h2 className="text-[14px] font-semibold">Composição do custo</h2>
-          <div className="text-right">
-            <div className="num text-[22px] leading-none font-semibold text-cost">{fmtBRL(cost.unit)}</div>
-            <div className="mt-1 text-[12px] text-muted">
-              {part.units > 1
-                ? `por unidade · ${fmtBRL(cost.total)} no lote de ${fmtNum(part.units)}`
-                : 'custo da unidade'}
-            </div>
-          </div>
-        </div>
-
-        <div
-          className="mt-3 flex h-2.5 gap-px overflow-hidden rounded-full bg-raised"
-          role="img"
-          aria-label={
-            'Participação no custo: ' +
-            lines.map((l) => `${l.label} ${fmtPct(share(l.value))}`).join(', ')
-          }
-        >
-          {lines.map(
-            (l) =>
-              l.value > 0 && (
-                <div
-                  key={l.key}
-                  className={cx(l.color, 'transition-[flex-grow] duration-200 ease-out')}
-                  style={{ flexGrow: l.value, flexBasis: 0 }}
-                />
-              ),
-          )}
-        </div>
-
-        <table className="mt-2 w-full">
-          <thead className="sr-only">
-            <tr>
-              <th>Componente</th>
-              <th>Participação</th>
-              <th>Valor</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lines.map((l) => (
-              <tr key={l.key} className="border-b border-line/70">
-                <td className="py-2 pr-3">
-                  <div className="flex items-start gap-2.5">
-                    <span className={cx('mt-[5px] size-2.5 shrink-0 rounded-[3px]', l.color)} aria-hidden />
-                    <div className="min-w-0">
-                      <div className={cx(l.value === 0 && 'text-muted')}>{l.label}</div>
-                      <div className="num text-[12px] whitespace-normal text-faint">{l.detail}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="num w-16 py-2 text-right align-top text-faint">
-                  {l.value > 0 ? fmtPct(share(l.value)) : '—'}
-                </td>
-                <td className={cx('num w-24 py-2 text-right align-top', l.value === 0 && 'text-faint')}>
-                  {fmtBRL(l.value)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td className="py-2.5 font-semibold" colSpan={2}>
-                Custo total{part.units > 1 ? ` do lote (${fmtNum(part.units)} un)` : ''}
-              </td>
-              <td className="num py-2.5 text-right font-semibold">{fmtBRL(cost.total)}</td>
-            </tr>
-          </tfoot>
-        </table>
-
         {/* Acessórios */}
-        <div className="mt-7 flex items-center justify-between">
+        <div className="mt-6 flex items-center justify-between">
           <h2 className="text-[14px] font-semibold">Acessórios e embalagens</h2>
           <Button variant="ghost" icon={<Plus className="size-4" />} onClick={() => addAccessory(part.id)}>
             Item
@@ -316,6 +258,93 @@ export function EditorPane({ state, part, className }: Props) {
             </tbody>
           </table>
         )}
+
+        {/* Composição do custo */}
+        <div className="mt-8 flex items-end justify-between gap-4">
+          <h2 className="text-[14px] font-semibold">Composição do custo</h2>
+          <div className="text-right">
+            <div className="num text-[22px] leading-none font-semibold text-cost">{fmtBRL(cost.unit)}</div>
+            <div className="mt-1 text-[12px] text-muted">
+              {part.units > 1
+                ? `por unidade · ${fmtBRL(cost.total)} no lote de ${fmtNum(part.units)}`
+                : 'custo da unidade'}
+            </div>
+          </div>
+        </div>
+
+        <div
+          className="mt-3 flex h-2.5 gap-px overflow-hidden rounded-full bg-raised"
+          role="img"
+          aria-label={
+            'Participação no custo: ' +
+            lines.map((l) => `${l.label} ${fmtPct(share(l.value))}`).join(', ')
+          }
+        >
+          {lines.map(
+            (l) =>
+              l.value > 0 && (
+                <div
+                  key={l.key}
+                  className={cx(l.color, 'transition-[flex-grow] duration-200 ease-out')}
+                  style={{ flexGrow: l.value, flexBasis: 0 }}
+                />
+              ),
+          )}
+        </div>
+
+        <table className="mt-2 w-full">
+          <thead className="sr-only">
+            <tr>
+              <th>Componente</th>
+              <th>Participação</th>
+              <th>Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lines.map((l) => (
+              <tr key={l.key} className="border-b border-line/70">
+                <td className="py-2 pr-3">
+                  <div className="flex items-start gap-2.5">
+                    <span className={cx('mt-[5px] size-2.5 shrink-0 rounded-[3px]', l.color)} aria-hidden />
+                    <div className="min-w-0">
+                      <div className={cx(l.value === 0 && 'text-muted')}>{l.label}</div>
+                      <div className="num text-[12px] whitespace-normal text-faint">
+                        {l.detail}
+                        {l.setup && (
+                          <>
+                            {' · '}
+                            <button
+                              type="button"
+                              onClick={() => onOpenSettings(l.setup!)}
+                              className="rounded-sm text-primary underline-offset-2 hover:underline"
+                            >
+                              Configurar
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td className="num w-16 py-2 text-right align-top text-faint">
+                  {l.value > 0 ? fmtPct(share(l.value)) : '—'}
+                </td>
+                <td className={cx('num w-24 py-2 text-right align-top', l.value === 0 && 'text-faint')}>
+                  {fmtBRL(l.value)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td className="py-2.5 font-semibold" colSpan={2}>
+                Custo total{part.units > 1 ? ` do lote (${fmtNum(part.units)} un)` : ''}
+              </td>
+              <td className="num py-2.5 text-right font-semibold">{fmtBRL(cost.total)}</td>
+            </tr>
+          </tfoot>
+        </table>
+
       </div>
     </section>
   );

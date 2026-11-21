@@ -30,6 +30,8 @@ export const ProjectSchema = z.object({
   name: z.string(),
   customer: z.string(),
   markups: z.array(num),
+  /** índice do markup usado como preço principal e no orçamento */
+  priceIdx: z.number().int().min(0).optional(),
   parts: z.array(PartSchema),
 });
 

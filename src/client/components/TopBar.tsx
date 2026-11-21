@@ -159,10 +159,8 @@ function ProjectMenu({ state, project }: { state: AppState; project: Project }) 
                 disabled={single}
                 title={single ? 'É o único projeto' : undefined}
                 onClick={() => {
-                  if (confirm(`Excluir o projeto "${project.name}" e suas ${project.parts.length} peça(s)?`)) {
-                    deleteProject();
-                    setOpen(false);
-                  }
+                  deleteProject();
+                  setOpen(false);
                 }}
               >
                 Excluir

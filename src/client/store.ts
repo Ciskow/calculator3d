@@ -20,16 +20,25 @@ import {
  */
 export type SyncStatus = 'loading' | 'saved' | 'saving' | 'error' | 'local';
 
+/** Estado anterior a uma exclusão; vale até a próxima alteração. */
+export interface UndoEntry {
+  id: number;
+  label: string;
+  data: AppState;
+  selPartId: string | null;
+}
+
 interface Store {
   data: AppState | null;
   status: SyncStatus;
   selPartId: string | null;
+  undo: UndoEntry | null;
 }
 
 const CACHE_KEY = 'calc3d.v2';
 const LEGACY_KEY = 'calc3d';
 
-export const useStore = create<Store>(() => ({ data: null, status: 'loading', selPartId: null }));
+export const useStore = create<Store>(() => ({ data: null, status: 'loading', selPartId: null, undo: null }));
 
 function readLocal(key: string): unknown {
   try {
@@ -124,19 +133,46 @@ export function flushOnExit() {
 
 // ---------- mutações ----------
 
-function mutate(fn: (s: AppState) => AppState) {
-  const { data } = useStore.getState();
+let undoSeq = 0;
+
+/**
+ * Aplica uma alteração. Com `undoLabel`, guarda o estado anterior para
+ * "Desfazer"; qualquer outra alteração descarta essa possibilidade.
+ */
+function mutate(fn: (s: AppState) => AppState, undoLabel?: string) {
+  const { data, selPartId } = useStore.getState();
   if (!data) return;
-  useStore.setState({ data: fn(data) });
+  const next = fn(data);
+  if (next === data) return;
+  useStore.setState({
+    data: next,
+    undo: undoLabel ? { id: ++undoSeq, label: undoLabel, data, selPartId } : null,
+  });
   scheduleSave();
 }
 
-function mutateProject(fn: (p: Project) => Project) {
-  mutate((s) => ({
-    ...s,
-    projects: s.projects.map((p) => (p.id === s.activeProjectId ? fn(p) : p)),
-  }));
+function mutateProject(fn: (p: Project) => Project, undoLabel?: string) {
+  mutate(
+    (s) => ({
+      ...s,
+      projects: s.projects.map((p) => (p.id === s.activeProjectId ? fn(p) : p)),
+    }),
+    undoLabel,
+  );
 }
+
+export function undo() {
+  const { undo: entry } = useStore.getState();
+  if (!entry) return;
+  useStore.setState({ data: entry.data, selPartId: entry.selPartId, undo: null });
+  scheduleSave();
+}
+export const dismissUndo = () => useStore.setState({ undo: null });
+
+/** Índice do markup usado como preço principal (sempre válido). */
+export const priceIdx = (p: Project) =>
+  Math.min(Math.max(p.priceIdx ?? 0, 0), Math.max(p.markups.length - 1, 0));
+export const setPriceIdx = (i: number) => mutateProject((p) => ({ ...p, priceIdx: i }));
 
 export function activeProject(s: AppState): Project {
   return s.projects.find((p) => p.id === s.activeProjectId) ?? s.projects[0];
@@ -176,7 +212,7 @@ export function deleteProject() {
     if (s.projects.length <= 1) return s;
     const projects = s.projects.filter((p) => p.id !== s.activeProjectId);
     return { ...s, projects, activeProjectId: projects[0].id };
-  });
+  }, 'Projeto excluído');
   useStore.setState({ selPartId: null });
 }
 export const patchProject = (patch: Partial<Pick<Project, 'name' | 'customer'>>) =>
@@ -191,7 +227,12 @@ export const addMarkup = () =>
     markups: [...p.markups, Math.round(((p.markups.at(-1) ?? 1.5) + 0.5) * 100) / 100],
   }));
 export const removeMarkup = (i: number) =>
-  mutateProject((p) => ({ ...p, markups: p.markups.filter((_, j) => j !== i) }));
+  mutateProject((p) => {
+    const cur = priceIdx(p);
+    const markups = p.markups.filter((_, j) => j !== i);
+    const next = i < cur ? cur - 1 : Math.min(cur, markups.length - 1);
+    return { ...p, markups, priceIdx: Math.max(next, 0) };
+  }, 'Markup removido');
 
 // peças
 export function addPart() {
@@ -222,7 +263,7 @@ export function deletePart(id: string) {
   const parts = activeProject(data).parts;
   const i = parts.findIndex((x) => x.id === id);
   const neighbour = parts[i + 1] ?? parts[i - 1];
-  mutateProject((p) => ({ ...p, parts: p.parts.filter((x) => x.id !== id) }));
+  mutateProject((p) => ({ ...p, parts: p.parts.filter((x) => x.id !== id) }), 'Peça excluída');
   useStore.setState({ selPartId: neighbour?.id ?? null });
 }
 export const patchPart = (id: string, patch: Partial<Omit<Part, 'id' | 'acc'>>) =>
@@ -232,21 +273,26 @@ export const patchPart = (id: string, patch: Partial<Omit<Part, 'id' | 'acc'>>) 
   }));
 
 // acessórios
-const mapAcc = (partId: string, fn: (acc: Accessory[]) => Accessory[]) =>
-  mutateProject((p) => ({
-    ...p,
-    parts: p.parts.map((x) => (x.id === partId ? { ...x, acc: fn(x.acc) } : x)),
-  }));
+const mapAcc = (partId: string, fn: (acc: Accessory[]) => Accessory[], undoLabel?: string) =>
+  mutateProject(
+    (p) => ({
+      ...p,
+      parts: p.parts.map((x) => (x.id === partId ? { ...x, acc: fn(x.acc) } : x)),
+    }),
+    undoLabel,
+  );
 export const addAccessory = (partId: string) =>
   mapAcc(partId, (acc) => [...acc, { id: newId(), name: '', qty: 1, cost: 0 }]);
 export const patchAccessory = (partId: string, id: string, patch: Partial<Omit<Accessory, 'id'>>) =>
   mapAcc(partId, (acc) => acc.map((a) => (a.id === id ? { ...a, ...patch } : a)));
 export const removeAccessory = (partId: string, id: string) =>
-  mapAcc(partId, (acc) => acc.filter((a) => a.id !== id));
+  mapAcc(partId, (acc) => acc.filter((a) => a.id !== id), 'Item removido');
 
 // configurações
 export const patchRates = (patch: Partial<Rates>) =>
   mutate((s) => ({ ...s, rates: { ...s.rates, ...patch } }));
+export const resetRates = (rates: Rates) =>
+  mutate((s) => ({ ...s, rates: { ...rates } }), 'Taxas restauradas');
 
 export const addMaterial = () =>
   mutate((s) => ({
@@ -259,7 +305,10 @@ export const patchMaterial = (id: string, patch: Partial<Omit<Material, 'id'>>) 
     materials: s.materials.map((m) => (m.id === id ? { ...m, ...patch } : m)),
   }));
 export const removeMaterial = (id: string) =>
-  mutate((s) => (s.materials.length <= 1 ? s : { ...s, materials: s.materials.filter((m) => m.id !== id) }));
+  mutate(
+    (s) => (s.materials.length <= 1 ? s : { ...s, materials: s.materials.filter((m) => m.id !== id) }),
+    'Material removido',
+  );
 
 export const addPrinter = () =>
   mutate((s) => ({
@@ -275,4 +324,7 @@ export const patchPrinter = (id: string, patch: Partial<Omit<Printer, 'id'>>) =>
     printers: s.printers.map((m) => (m.id === id ? { ...m, ...patch } : m)),
   }));
 export const removePrinter = (id: string) =>
-  mutate((s) => (s.printers.length <= 1 ? s : { ...s, printers: s.printers.filter((m) => m.id !== id) }));
+  mutate(
+    (s) => (s.printers.length <= 1 ? s : { ...s, printers: s.printers.filter((m) => m.id !== id) }),
+    'Impressora removida',
+  );
